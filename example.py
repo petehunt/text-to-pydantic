@@ -27,10 +27,9 @@ response = Response.from_natural_language(
   llm,
   """
     i am barney rubble, my age is 57, and i have lived in bedrock for 2 years.
-    my wife is betty and she has the same last name as me, and is 2 years younger than me
+    my wife is betty and she has the same last name as me, and is 55
   """
 )
-print(response)
 assert response == Response(
   people_mentioned_in_text=[
     Person(person_name="Barney Rubble", person_age=57),

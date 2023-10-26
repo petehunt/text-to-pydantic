@@ -1,0 +1,6 @@
+venv
+issues.json
+labels.json
+.python-version
+__pycache__
+*.gguf
