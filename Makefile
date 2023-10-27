@@ -10,4 +10,4 @@ labels.json:
 	curl 'https://api.github.com/repos/dagster-io/dagster/labels?per_page=100' > labels.json
 
 mistral-7b-instruct-v0.1.Q5_K_M.gguf:
-	echo "populate"
+	wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q5_K_M.gguf
