@@ -4,12 +4,15 @@ from pydantic import BaseModel
 from llama_cpp import Llama
 from enum import Enum
 import json
+from tqdm import tqdm
+import csv
 
 from text_to_pydantic import LLM, AIBaseModel
 
 class GithubIssueType(Enum):
   bug = "bug"
   feature = "feature"
+  question = "question"
   other = "other"
 
 class GithubIssueQuality(Enum):
@@ -23,6 +26,10 @@ class GithubIssueTeam(Enum):
   backend_infrastructure = "backend_infrastructure"
   other = "other"
 
+class GithubClassificationConfidence(Enum):
+  low = "low"
+  medium = "medium"
+  high = "high"
 
 
 llm = LLM(
@@ -38,16 +45,26 @@ llm = LLM(
 class GithubIssue(AIBaseModel):
   github_issue_one_line_description: str
   github_issue_type: GithubIssueType
+  github_issue_type_confidence: GithubClassificationConfidence
   github_issue_quality: GithubIssueQuality
+  github_issue_quality_confidence: GithubClassificationConfidence
   github_issue_triaged_team: GithubIssueTeam
+  github_issue_triaged_team_confidence: GithubClassificationConfidence
 
 
-for issue in json.loads(Path("issues.json").read_text()):
-  if "pull_request" in issue:
-    continue
-  text = f"Title: {issue['title']}\n\nBody:\n{issue['body']}"
-  parsed = GithubIssue.from_natural_language(llm, text)
-  #print("text:")
-  #print(text)
-  #print("parsed:")
-  print(parsed)
+with open("output.csv", "w") as f:
+  writer = csv.writer(f)
+  writer.writerow(["summary", "type", "quality", "team", "url"])
+  for issue in tqdm([issue for issue in json.loads(Path("issues.json").read_text()) if "pull_request" not in issue]):
+    text = json.dumps({"title": issue["title"], "body": issue["body"][:8192]})
+    print(text)
+    parsed = GithubIssue.from_natural_language(llm, text)
+    print(parsed)
+    print('-------------')
+    writer.writerow([
+      parsed.github_issue_one_line_description,
+      parsed.github_issue_type.value,
+      parsed.github_issue_quality.value,
+      parsed.github_issue_triaged_team.value,
+      issue['html_url'],
+    ])
