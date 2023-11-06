@@ -2,7 +2,8 @@ import json
 from llama_cpp import Llama, LlamaGrammar
 from .json_schema_to_grammar import SchemaConverter
 import weakref
-from typing import Self, Callable
+from typing import Callable
+from typing_extensions import Self
 from pydantic import BaseModel, ConfigDict
 
 class LLM(BaseModel):
