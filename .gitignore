@@ -1,5 +1,7 @@
 venv
-issues.json
+*.json
 .python-version
 __pycache__
 *.gguf
+issues_train
+issues_test

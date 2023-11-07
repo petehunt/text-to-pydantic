@@ -5,34 +5,15 @@ from enum import Enum
 import json
 from tqdm import tqdm
 import csv
+import random
 
 from text_to_pydantic import text_to_pydantic
 
 
 class GithubIssueType(Enum):
     bug = "bug"
-    feature = "feature"
-    question = "question"
-    other = "other"
-
-
-class GithubIssueQuality(Enum):
-    high_quality = "high_quality"
-    medium_quality = "medium_quality"
-    low_quality = "low_quality"
-
-
-class GithubIssueProductArea(Enum):
-    user_interface = "user_interface"
-    assets_and_scheduling = "assets_and_scheduling"
-    backend_infrastructure = "backend_infrastructure"
-    other = "other"
-
-
-class GithubClassificationConfidence(Enum):
-    low = "low"
-    medium = "medium"
-    high = "high"
+    feature_request = "feature_request"
+    unknown = "unknown"
 
 
 llama = Llama(
@@ -44,33 +25,79 @@ llama = Llama(
 )
 
 
+def issue_data_to_text(issue_data):
+    return f"GitHub issue title: {issue_data['title']}\n\nGitHub issue body:\n{issue_data['body'][:8192]}"
+
+
+def issue_data_to_github_issue_type(issue_data):
+    label_names = set(label["name"] for label in issue_data["labels"])
+    if "type: bug" in label_names:
+        return GithubIssueType.bug
+
+    elif "type: feature-request" in label_names:
+        return GithubIssueType.feature_request
+
+    else:
+        return GithubIssueType.unknown
+
+
+def load_issue_data_from_filename(filename):
+    raw_data = json.loads(Path(filename).read_text())
+    return [
+        issue
+        for issue in raw_data
+        if "pull_request" not in issue and issue["body"] and len(issue["labels"]) > 0
+    ]
+
+
+def load_issue_data_from_directory(path):
+    for filename in Path(path).glob("*"):
+        yield from load_issue_data_from_filename(filename)
+
+
 class GithubIssue(BaseModel):
-    github_issue_one_line_description: str
     github_issue_type: GithubIssueType
-    github_issue_type_confidence: GithubClassificationConfidence
+    # github_issue_type_confidence: GithubClassificationConfidence
+    # github_issue_quality: GithubIssueQuality
+    # github_issue_quality_confidence: GithubClassificationConfidence
+    # github_issue_product_area: GithubIssueProductArea
+    # github_issue_product_area_confidence: GithubClassificationConfidence
 
 
-issues = [
-    issue
-    for issue in json.loads(Path("issues.json").read_text())
-    if "pull_request" not in issue
+random.seed(0)
+
+train_issues = list(load_issue_data_from_directory("issues_train"))
+test_issues = list(load_issue_data_from_directory("issues_test"))
+
+random.shuffle(train_issues)
+random.shuffle(test_issues)
+
+train_issues = train_issues[:2]
+test_issues = test_issues[:10]
+
+examples = [
+    (
+        issue_data_to_text(issue),
+        GithubIssue(github_issue_type=issue_data_to_github_issue_type(issue)),
+    )
+    for issue in train_issues
 ]
-texts = [
-    f"GitHub issue title: {issue['title']}\n\nGitHub issue body:\n{issue['body'][:8192]}"
-    for issue in issues
-]
 
+
+issues = test_issues
+texts = [issue_data_to_text(issue) for issue in issues]
 with open("output.csv", "w") as f:
     writer = csv.writer(f)
-    writer.writerow(["summary", "type", "confidence", "url"])
+    writer.writerow(["summary", "type", "url"])
 
-    for issue, parsed in zip(issues, text_to_pydantic(llama, GithubIssue, tqdm(texts))):
-        print(parsed)
+    for issue, parsed in zip(
+        issues, text_to_pydantic(llama, GithubIssue, tqdm(texts), examples=examples)
+    ):
+        print(issue["title"], parsed)
         writer.writerow(
             [
-                parsed.github_issue_one_line_description,
+                issue["title"],
                 parsed.github_issue_type.value,
-                parsed.github_issue_type_confidence.value,
                 issue["html_url"],
             ]
         )
