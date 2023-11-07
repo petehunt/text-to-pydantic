@@ -22,9 +22,9 @@ class GithubIssueQuality(Enum):
     low_quality = "low_quality"
 
 
-class GithubIssueTeam(Enum):
-    frontend = "frontend"
-    core_apis = "core_apis"
+class GithubIssueProductArea(Enum):
+    user_interface = "user_interface"
+    assets_and_scheduling = "assets_and_scheduling"
     backend_infrastructure = "backend_infrastructure"
     other = "other"
 
@@ -48,10 +48,6 @@ class GithubIssue(BaseModel):
     github_issue_one_line_description: str
     github_issue_type: GithubIssueType
     github_issue_type_confidence: GithubClassificationConfidence
-    github_issue_quality: GithubIssueQuality
-    github_issue_quality_confidence: GithubClassificationConfidence
-    github_issue_triaged_team: GithubIssueTeam
-    github_issue_triaged_team_confidence: GithubClassificationConfidence
 
 
 issues = [
@@ -66,7 +62,7 @@ texts = [
 
 with open("output.csv", "w") as f:
     writer = csv.writer(f)
-    writer.writerow(["summary", "type", "quality", "team", "url"])
+    writer.writerow(["summary", "type", "confidence", "url"])
 
     for issue, parsed in zip(issues, text_to_pydantic(llama, GithubIssue, tqdm(texts))):
         print(parsed)
@@ -74,8 +70,7 @@ with open("output.csv", "w") as f:
             [
                 parsed.github_issue_one_line_description,
                 parsed.github_issue_type.value,
-                parsed.github_issue_quality.value,
-                parsed.github_issue_triaged_team.value,
+                parsed.github_issue_type_confidence.value,
                 issue["html_url"],
             ]
         )
